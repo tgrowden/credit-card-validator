@@ -1,22 +1,5 @@
-export const MIN_VALID_CREDIT_CARD_LENGTH = 8;
-
-export const MAX_VALID_CREDIT_CARD_LENGTH = 19;
-
-/**
- * Checks the length of an input string to see if it's valid.
- *
- * Apparently, a credit card can be between 8 and 19 digits long (who knew?)
- *
- * @see https://www.capitalone.com/learn-grow/money-management/what-is-a-credit-card-number/
- *
- * @todo confirm with stakeholders if we are going to support these outliers
- */
-function isValidCreditCardLength(input: string): boolean {
-  return (
-    input.length >= MIN_VALID_CREDIT_CARD_LENGTH &&
-    input.length <= MAX_VALID_CREDIT_CARD_LENGTH
-  );
-}
+import isValidCreditCardLength from "./isValidCreditCardLength";
+import sanitizeNumericInput from "./sanitizeNumericInput";
 
 /**
  * Checks if a credit card number is valid using the Luhn algorithm.
@@ -26,36 +9,45 @@ function isValidCreditCardLength(input: string): boolean {
  *
  * @see https://en.wikipedia.org/wiki/Luhn_algorithm
  */
-export default function isValidLuhnCreditCard(input: unknown) {
+export default function isValidLuhnCreditCard(input: string) {
   if (typeof input !== "string") {
     return false;
   }
 
-  const sanitizedInput = input.replace(/\D/g, "");
+  const sanitizedInput = sanitizeNumericInput(input);
 
   if (!isValidCreditCardLength(sanitizedInput)) {
     return false;
   }
 
-  const checksum = Number(sanitizedInput.charAt(sanitizedInput.length - 1));
+  /**
+   * Assuming that the checkDigit is the last digit of the input
+   */
+  const checkDigit = Number(sanitizedInput.charAt(sanitizedInput.length - 1));
 
   let total = 0;
 
+  /**
+   * Iterate over every digit in the input string, having dropped the check-digit
+   */
   for (let i = sanitizedInput.length - 2; i >= 0; i--) {
-    let sum = 0;
     let digit = Number(sanitizedInput.charAt(i));
 
+    // double the value of every second digit from the right
     if (i % 2 === sanitizedInput.length % 2) {
       digit *= 2;
     }
 
-    sum = Math.floor(digit / 10) + (digit % 10);
-    total += sum;
+    total += Math.floor(digit / 10) + (digit % 10);
   }
 
   if (total % 10 === 0) {
-    return checksum === 0;
+    return checkDigit === 0;
   }
 
-  return 10 - (total % 10) === checksum;
+  /**
+   * The check digit is calculated by `(10 - (s % 10)) % 10`
+   * where `s` is the sum of all the digits in the input string
+   */
+  return (10 - (total % 10)) % 10 === checkDigit;
 }
